@@ -7,7 +7,9 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 
-const socket = io("http://localhost:5000", { transports: ["websocket"] });
+const socket = io("https://hypo-1jcf.onrender.com/", {
+  transports: ["websocket"],
+});
 export default function RoomView() {
   const { roomId } = useParams();
   const { getToken } = useAuth();
@@ -29,7 +31,7 @@ export default function RoomView() {
     });
     getToken()
       .then((token) => {
-        return fetch(`http://localhost:5000/api/messages/${roomId}`, {
+        return fetch(`https://hypo-1jcf.onrender.com/api/messages/${roomId}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

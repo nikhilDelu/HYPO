@@ -22,7 +22,7 @@ export default function RoomPage() {
         toast.error("Unable to retrieve Clerk token");
         return;
       }
-      fetch("http://localhost:5000/api/rooms", {
+      fetch("https://hypo-1jcf.onrender.com/api/rooms", {
         method: "POST",
         body: JSON.stringify({ name: roomName }),
         headers: {
