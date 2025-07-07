@@ -12,7 +12,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col items-center justify-center h-screen">
       <h1>Welcome to Quiz Collab 🎯</h1>
-      <UserButton afterSignOutUrl="/" />
+      <UserButton fallback="/" />
       <p className="mt-4 text-muted-foreground">
         <Button asChild>
           <Link href={"/room"}>Go To Room</Link>
