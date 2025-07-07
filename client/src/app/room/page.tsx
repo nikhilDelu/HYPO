@@ -31,12 +31,12 @@ export default function RoomPage() {
         },
       })
         .then((res) => res.json())
-        .then((data: any) => {
+        .then((data) => {
           if (data?.roomId) {
             router.push(`/room/${data.roomId}`);
           }
         })
-        .catch((err: any) => {
+        .catch((err) => {
           console.error("Error:", err);
           toast.error("Something went wrong");
         });
