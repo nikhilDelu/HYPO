@@ -46,78 +46,82 @@ app.get("/api/messages/:roomId", requireAuth(), async (req, res) => {
 
 // quiz part
 app.post("/api/quiz", async (req, res) => {
-  try {
-    const sub = req.body.sub;
-    const createdBy = req.body.createdBy;
-    const roomId = req.body.roomId;
+  const { sub, createdBy, roomId } = req.body;
 
-    const response = await axios.post("http://localhost:11434/api/generate", {
-      model: "llama3.2",
-      prompt: `You are an expert in ${sub}. Return a JSON object with 2 items:
-
-1. A list of exactly 2 multiple-choice questions.
-2. A short, factual description of the subject ${sub} (2-4 lines only).
-
-The format must be:
+  const prompt = `
+You are an expert in ${sub}. Return only this exact JSON object:
 
 {
-  "ques" :[
+  "ques": [
     {
-      "question": "Your question here?",
+      "question": "What is ...?",
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "answer": 2
     },
     {
-      "question": "Second question here?",
+      "question": "Second question?",
       "options": ["A", "B", "C", "D"],
       "answer": 0
     }
   ],
-  "desc":"Subject description here",
-  }
+  "desc": "A short description of ${sub}."
+}
 
-Strict rules:
-- Only return this JSON object. No comments, no extra output.
-- Make all 4 options realistic and related to the question.
-- "answer" is the correct option's index (0 to 3).
-- Description must not reference the questions or give hints.
-- Use only straight double quotes ("), commas, and valid JSON.
+Rules:
+- No explanation, markdown, or comments.
+- Use straight double quotes and valid JSON only.
+`;
 
-      `,
+  try {
+    const response = await axios.post("http://localhost:11434/api/generate", {
+      model: "llama3.2",
+      prompt,
       stream: false,
     });
+
+    // STEP 1: Clean curly quotes and code blocks
     const raw = response.data.response
       .replace(/[“”]/g, '"')
       .replace(/[‘’]/g, "'")
       .replace(/```(json)?/g, "")
       .trim();
 
-    const data = JSON.parse(raw);
-
-    try {
-      console.log(data + "\n\n The something" + data.desc);
-
-      // const quiz = JSON.parse(data["ques"]);
-
-      const des = data["desc"];
-      const ques = data["ques"];
-      console.log("des import success....");
-      const quz = await Quiz.create({
-        roomId,
-        questions: ques,
-        description: des,
-        createdBy,
-      });
-      res.json(des);
-    } catch (parseErr) {
-      console.error("Invalid JSON from LLM \n", data + "\n\n" + parseErr);
-      res.status(500).json({ error: "\n \n \nLLM returned malformed JSON \n" });
+    // STEP 2: Extract just the JSON object
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) {
+      console.error("❌ LLM returned no parsable JSON");
+      return res.status(500).json({ error: "LLM returned no JSON" });
     }
+
+    // STEP 3: Try parsing it
+    let data;
+    try {
+      data = JSON.parse(match[0]);
+      console.log(data.desc);
+    } catch (parseErr) {
+      console.error("❌ Invalid JSON:\n", match[0]);
+      return res.status(500).json({ error: "LLM returned malformed JSON" });
+    }
+
+    const existing = await Quiz.find();
+    if (existing) {
+      await Quiz.deleteMany({ roomId });
+    }
+    // STEP 4: Save to DB
+    const quiz = await Quiz.create({
+      roomId,
+      questions: data.ques,
+      description: data.desc,
+      createdBy,
+    });
+    const desc = data.desc;
+    res.json({ desc });
   } catch (error) {
     console.error("Quiz generation error:", error.message);
     res.status(500).json({ error: "Failed to generate quiz" });
   }
 });
+
 app.post("/api/quiz/start", async (req, res) => {
   console.log("yayyyy....");
   res.status(200).json({ redirectTo: "/quiz" });
@@ -141,7 +145,7 @@ io.on("connection", (socket) => {
   });
   socket.on("start", async ({ roomId }) => {
     try {
-      const quiz = await Quiz.find({ roomId });
+      const quiz = await Quiz.findOne({ roomId });
       if (!quiz) {
         return console.error("❌ No quiz found for room:", roomId);
       }

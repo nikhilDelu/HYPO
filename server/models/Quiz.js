@@ -28,10 +28,6 @@ const quizSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-    subject: {
-      type: String,
-      required: true,
-    },
     description: {
       type: String,
     },
