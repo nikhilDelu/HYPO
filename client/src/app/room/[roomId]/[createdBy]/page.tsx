@@ -7,7 +7,6 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import axios from "axios";
-import Link from "next/link";
 interface Question {
   question: string;
   options: [string, string, string, string];
@@ -91,8 +90,8 @@ export default function RoomView() {
           roomId,
         })
         .then((res) => {
-          setDesc(res.data);
-          console.log(res.data);
+          console.log("descriptoion here: ", res.data);
+          setDesc(res.data.desc);
           setSubject("");
           setLoading(false);
         });
