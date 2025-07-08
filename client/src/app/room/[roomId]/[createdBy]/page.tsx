@@ -7,6 +7,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import axios from "axios";
+import { toast } from "sonner";
 
 const socket = io("http://localhost:5000", {
   transports: ["websocket"],
@@ -45,7 +46,7 @@ export default function RoomView() {
     }
     socket.emit("join-room", roomId);
     socket.on("quiz-started", () => {
-      router.push(`/quiz/${roomId}`);
+      router.push(`/quiz/${roomId}?createdBy=${createdBy}`);
     });
     socket.on("chat-message", ({ message, user }) => {
       setMessages((prev) => [...prev, { message, user }]);
@@ -94,8 +95,9 @@ export default function RoomView() {
           setSubject("");
           setLoading(false);
         });
-    } catch (error) {
+    } catch (err) {
       setLoading(false);
+      toast.error(err + "");
     }
   };
   const startQuiz = () => {

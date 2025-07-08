@@ -47,30 +47,46 @@ app.get("/api/messages/:roomId", requireAuth(), async (req, res) => {
 // quiz part
 app.post("/api/quiz", async (req, res) => {
   const { sub, createdBy, roomId } = req.body;
+  const prompt = `You are a subject expert in ${sub}. Your task is to generate a valid JSON object with two keys:
 
-  const prompt = `
-You are an expert in ${sub}. Return only this exact JSON object:
+1. "ques": An array of exactly 10 original multiple-choice questions.
+2. "desc": A short (1-2 line), factual description of the subject.
 
+Each question must follow this format:
+{
+  "question": "A clearly worded question relevant to ${sub}",
+  "options": ["Option A", "Option B", "Option C", "Option D"],
+  "answer": 0
+}
+
+Strict rules:
+- Return ONLY a raw JSON object. Do NOT include markdown, comments, or explanations.
+- Use ONLY straight double quotes (").
+- All values must be strings, numbers, or arrays in valid JSON format.
+- No trailing commas.
+- Options must be relevant to the question.
+- Description must be neutral and not reveal any answers.
+
+DO NOT:
+- Wrap your output in backticks, code blocks, or markdown.
+- Repeat this template or example.
+
+The JSON should look like this:
 {
   "ques": [
     {
-      "question": "What is ...?",
+      "question": "Your first question here",
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "answer": 2
     },
     {
-      "question": "Second question?",
+      "question": "Your second question here",
       "options": ["A", "B", "C", "D"],
-      "answer": 0
+      "answer": 1
     }
   ],
-  "desc": "A short description of ${sub}."
-}
-
-Rules:
-- No explanation, markdown, or comments.
-- Use straight double quotes and valid JSON only.
-`;
+  "desc": "A concise, neutral summary of ${sub}."
+}`;
 
   try {
     const response = await axios.post("http://localhost:11434/api/generate", {
@@ -95,6 +111,7 @@ Rules:
 
     // STEP 3: Try parsing it
     let data;
+    console.log("match :", match);
     try {
       data = JSON.parse(match[0]);
       console.log(data.desc);
