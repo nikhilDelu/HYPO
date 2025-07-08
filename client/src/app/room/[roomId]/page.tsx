@@ -11,12 +11,7 @@ const socket = io("https://hypo-1jcf.onrender.com/", {
   transports: ["websocket"],
 });
 export default function RoomView() {
-  ///////
-  const [isCreator, setIsCreator] = useState(true);
-  const [subjects, setSubjects] = useState(["Math", "Science", "GK"]);
-  const [pollStarted, setPollStarted] = useState(false);
-  const [votes, setVotes] = useState<Record<string, number>>({});
-  const [winner, setWinner] = useState("");
+  
   const { roomId } = useParams();
   const { getToken } = useAuth();
   const [messages, setMessages] = useState<
@@ -35,20 +30,7 @@ export default function RoomView() {
 
     socket.emit("join-room", roomId);
 
-    socket.on("poll-started", ({ subjects }) => {
-      setPollStarted(true);
-      setSubjects(subjects);
-      setVotes({});
-    });
 
-    socket.on("poll-updated", (voteCounts) => {
-      setVotes(voteCounts);
-    });
-
-    socket.on("poll-ended", ({ subject }) => {
-      setWinner(subject);
-      setPollStarted(false);
-    });
 
     return () => {
       socket.off("poll-started");
@@ -128,59 +110,7 @@ export default function RoomView() {
         <Button onClick={sendMessage}>Send</Button>
       </div>
 
-      {!pollStarted && (
-        <div className="mt-6">
-          <h2 className="text-xl font-semibold mb-2">Start Subject Poll</h2>
-          {isCreator && (
-            <>
-              <div className="flex gap-2">
-                {subjects.map((subj, idx) => (
-                  <Button
-                    key={idx}
-                    variant="outline"
-                    onClick={() => {
-                      socket.emit("create-poll", { roomId, subjects });
-                    }}
-                  >
-                    Start Poll with: {subj}
-                  </Button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {pollStarted && (
-        <div className="mt-6">
-          <h2 className="text-lg font-medium mb-2">Vote for a Subject</h2>
-          <div className="flex gap-3 flex-wrap">
-            {subjects.map((subj, idx) => (
-              <Button
-                key={idx}
-                onClick={() => socket.emit("vote", { roomId, subject: subj })}
-              >
-                {subj} ({votes[subj] || 0})
-              </Button>
-            ))}
-          </div>
-
-          {isCreator && (
-            <Button
-              className="mt-4"
-              onClick={() => socket.emit("end-poll", { roomId })}
-            >
-              End Poll
-            </Button>
-          )}
-        </div>
-      )}
-
-      {winner && (
-        <div className="mt-4 text-green-600 font-bold text-lg">
-          🎉 Selected Subject: {winner}
-        </div>
-      )}
+      
     </div>
   );
 }

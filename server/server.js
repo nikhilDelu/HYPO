@@ -45,34 +45,6 @@ app.get("/api/messages/:roomId", requireAuth(), async (req, res) => {
 const activePolls = {};
 
 io.on("connection", (socket) => {
-  socket.on("create-poll", ({ roomId, subjects }) => {
-    if (!roomId || !Array.isArray(subjects)) return;
-
-    activePolls[roomId] = {
-      subjects,
-      votes: {}, // {subjectName: count}
-    };
-    io.to(roomId).emit("pool-started", { subjects });
-  });
-
-  socket.on("vote", ({ roomId, subject }) => {
-    const poll = activePolls[roomId];
-    if (!poll || !poll.subjects.includes(subject)) return;
-
-    poll.votes[subject] = (poll.votes[subject] || 0) + 1;
-    io.to(roomId).emit("poll-updated", poll.votes);
-  });
-
-  socket.on("end-poll", ({ roomId }) => {
-    const poll = activePolls[roomId];
-    if (!poll) return;
-
-    const result = Object.entries(poll.votes).sort((a, b) => b[1] - a[1])[0];
-    const winningSubject = result?.[0] || null;
-
-    io.to(roomId).emit("poll-ended", { subject: winningSubject });
-    delete activePolls[roomId];
-  });
 
   console.log("🟢 New user connected:", socket.id);
 
