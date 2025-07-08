@@ -8,7 +8,6 @@ import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import axios from "axios";
 import Link from "next/link";
-
 interface Question {
   question: string;
   options: [string, string, string, string];
@@ -69,6 +68,7 @@ export default function RoomView() {
       socket.off("chat-message");
     };
   }, [roomId]);
+
   const sendMessage = () => {
     if (!input.trim()) return;
     socket.emit("chat-message", {
@@ -85,7 +85,11 @@ export default function RoomView() {
     try {
       setLoading(true);
       axios
-        .post("http://localhost:5000/api/quiz", { sub: subject })
+        .post("http://localhost:5000/api/quiz", {
+          sub: subject,
+          createdBy,
+          roomId,
+        })
         .then((res) => {
           setDesc(res.data);
           console.log(res.data);
@@ -96,15 +100,16 @@ export default function RoomView() {
       setLoading(false);
     }
   };
+  const startQuiz = () => {};
   return (
     <div className="flex gap-2 h-screen p-6">
       {desc?.length && (
         <div className="fixed bottom-8 w-full">
-          <Link href={"/quiz"}>
+          <div onClick={startQuiz}>
             <div className="w-66 active:scale-95 transition-all duration-300 cursor-pointer bg-black backdrop-blur-3xl select-none text-white p-4 rounded-full text-center mx-auto">
               Start The Battel
             </div>
-          </Link>
+          </div>
         </div>
       )}
       <div className="w-full h-full bg-gray-100/50 rounded-lg border-2 border-gray-200 flex flex-col items-center justify-center p-2">
@@ -123,7 +128,9 @@ export default function RoomView() {
         )}
       </div>
       <div className="w-full h-full rounded-lg border-2 border-gray-200 p-2 flex flex-col items-center justify-center gap-2">
-        <h1 className="text-2xl font-bold mb-4">Room: {roomId}</h1>
+        <h1 className="text-2xl font-bold mb-4">
+          Room: {roomId}/{createdBy}
+        </h1>
         {user?.id == createdBy && (
           <div className="flex gap-2 w-full max-w-xl">
             <Input

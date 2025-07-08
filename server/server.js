@@ -7,8 +7,8 @@ import "dotenv/config";
 import { Server } from "socket.io";
 import http from "http";
 import Message from "./models/Message.js";
+import Quiz from "./models/Quiz.js";
 import axios from "axios";
-import Stream from "stream";
 
 const app = express();
 const server = http.createServer(app);
@@ -48,6 +48,8 @@ app.get("/api/messages/:roomId", requireAuth(), async (req, res) => {
 app.post("/api/quiz", async (req, res) => {
   try {
     const sub = req.body.sub;
+    const createdBy = req.body.createdBy;
+    const roomId = req.body.roomId;
 
     const response = await axios.post("http://localhost:11434/api/generate", {
       model: "llama3.2",
@@ -98,7 +100,14 @@ Strict rules:
       // const quiz = JSON.parse(data["ques"]);
 
       const des = data["desc"];
+      const ques = data["ques"];
       console.log("des import success....");
+      const quz = await Quiz.create({
+        roomId,
+        questions: ques,
+        description: des,
+        createdBy,
+      });
       res.json(des);
     } catch (parseErr) {
       console.error("Invalid JSON from LLM \n", data + "\n\n" + parseErr);
@@ -109,7 +118,10 @@ Strict rules:
     res.status(500).json({ error: "Failed to generate quiz" });
   }
 });
-
+app.post("/api/quiz/start", async (req, res) => {
+  console.log("yayyyy....");
+  res.status(200).json({ redirectTo: "/quiz" });
+});
 //
 const activePolls = {};
 
@@ -126,6 +138,22 @@ io.on("connection", (socket) => {
   });
   socket.on("disconnect", () => {
     console.log("🔴 User disconnected:", socket.id);
+  });
+  socket.on("start", async ({ roomId }) => {
+    try {
+      const quiz = await Quiz.find({ roomId });
+      if (!quiz) {
+        return console.error("❌ No quiz found for room:", roomId);
+      }
+      io.to(roomId).emit("quiz-started", {
+        roomId,
+        questions: quiz.questions,
+        description: quiz.description,
+        createdBy: quiz.createdBy,
+      });
+    } catch (error) {
+      console.error(error);
+    }
   });
 });
 
