@@ -9,7 +9,7 @@ import { io } from "socket.io-client";
 import axios from "axios";
 import { toast } from "sonner";
 
-const socket = io("http://localhost:5000", {
+const socket = io("https://hypo-1jcf.onrender.com", {
   transports: ["websocket"],
 });
 export default function RoomView() {
@@ -53,7 +53,7 @@ export default function RoomView() {
     });
     getToken()
       .then((token) => {
-        return fetch(`http://localhost:5000/api/messages/${roomId}`, {
+        return fetch(`https://hypo-1jcf.onrender.com/api/messages/${roomId}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -84,7 +84,7 @@ export default function RoomView() {
     try {
       setLoading(true);
       axios
-        .post("http://localhost:5000/api/quiz", {
+        .post("https://hypo-1jcf.onrender.com/api/quiz", {
           sub: subject,
           createdBy,
           roomId,
