@@ -33,7 +33,7 @@ export default function RoomPage() {
         .then((res) => res.json())
         .then((data) => {
           if (data?.roomId) {
-            router.push(`/room/${data.roomId}`);
+            router.push(`/room/${data.roomId}/${data.createdBy}`);
           }
         })
         .catch((err) => {
