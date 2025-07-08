@@ -90,7 +90,7 @@ The JSON should look like this:
 
   try {
     const response = await axios.post("http://localhost:11434/api/generate", {
-      model: "gemma3",
+      model: "gemma3:1b",
       prompt,
       stream: false,
     });
