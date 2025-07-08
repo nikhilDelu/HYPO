@@ -49,8 +49,8 @@ app.post("/api/quiz", async (req, res) => {
   const { sub, createdBy, roomId } = req.body;
   const prompt = `You are a subject expert in ${sub}. Your task is to generate a valid JSON object with two keys:
 
-1. "ques": An array of exactly 10 original multiple-choice questions.
-2. "desc": A short (1-2 line), factual description of the subject.
+1. "ques": An array of exactly 4 original multiple-choice questions.
+2. "desc": A short (1 line), factual description of the subject.
 
 Each question must follow this format:
 {
