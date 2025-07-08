@@ -3,15 +3,10 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth, useUser } from "@clerk/nextjs";
-import { useParams } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import axios from "axios";
-interface Question {
-  question: string;
-  options: [string, string, string, string];
-  answer: string;
-}
 
 const socket = io("http://localhost:5000", {
   transports: ["websocket"],
@@ -19,6 +14,7 @@ const socket = io("http://localhost:5000", {
 export default function RoomView() {
   const { roomId, createdBy } = useParams();
   const { getToken } = useAuth();
+  const router = useRouter();
   const [messages, setMessages] = useState<
     { message: string; user: { id: string; name: string } }[]
   >([]);
@@ -48,6 +44,9 @@ export default function RoomView() {
       return;
     }
     socket.emit("join-room", roomId);
+    socket.on("quiz-started", () => {
+      router.push(`/quiz/${roomId}`);
+    });
     socket.on("chat-message", ({ message, user }) => {
       setMessages((prev) => [...prev, { message, user }]);
     });
@@ -99,7 +98,9 @@ export default function RoomView() {
       setLoading(false);
     }
   };
-  const startQuiz = () => {};
+  const startQuiz = () => {
+    socket.emit("start", { roomId });
+  };
   return (
     <div className="flex gap-2 h-screen p-6">
       {desc?.length && (

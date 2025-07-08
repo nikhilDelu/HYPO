@@ -143,21 +143,25 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log("🔴 User disconnected:", socket.id);
   });
-  socket.on("start", async ({ roomId }) => {
+  socket.on("start", ({ roomId }) => {
     try {
-      const quiz = await Quiz.findOne({ roomId });
-      if (!quiz) {
-        return console.error("❌ No quiz found for room:", roomId);
-      }
       io.to(roomId).emit("quiz-started", {
         roomId,
-        questions: quiz.questions,
-        description: quiz.description,
-        createdBy: quiz.createdBy,
       });
     } catch (error) {
       console.error(error);
     }
+  });
+  socket.on("get-quiz", async ({ roomId }) => {
+    const quiz = await Quiz.findOne({ roomId });
+    if (!quiz) {
+      return console.error("❌ No quiz found for room:", roomId);
+    }
+    io.to(roomId).emit("questions", {
+      roomId: roomId,
+      questions: quiz.questions,
+      createdBy: quiz.createdBy,
+    });
   });
 });
 
