@@ -7,11 +7,10 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 
-const socket = io("https://hypo-1jcf.onrender.com/", {
+const socket = io("http://localhost:5000", {
   transports: ["websocket"],
 });
 export default function RoomView() {
-  ///////
   const [isCreator, setIsCreator] = useState(true);
   const [subjects, setSubjects] = useState(["Math", "Science", "GK"]);
   const [pollStarted, setPollStarted] = useState(false);
