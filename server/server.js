@@ -14,14 +14,14 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: "https://hypo-orpin.vercel.app",
     credentials: true,
   },
 });
 mongoose.connect(
   "mongodb+srv://projectyjka:53yjka21@asciicluster0.pgohfwc.mongodb.net/ASCIIdb"
 );
-app.use(cors({ origin: "http://localhost:3000", credentials: true }));
+app.use(cors({ origin: "https://hypo-orpin.vercel.app", credentials: true }));
 app.use(express.json());
 app.use(clerkMiddleware({}));
 app.use((req, res, next) => {
@@ -89,7 +89,7 @@ JSON FORMAT:
 
   try {
     const response = await axios.post("http://localhost:11434/api/generate", {
-      model: "gemma3:4b",
+      model: "llama3.2",
       prompt,
       stream: false,
     });
