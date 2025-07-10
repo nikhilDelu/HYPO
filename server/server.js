@@ -47,50 +47,49 @@ app.get("/api/messages/:roomId", requireAuth(), async (req, res) => {
 // quiz part
 app.post("/api/quiz", async (req, res) => {
   const { sub, createdBy, roomId } = req.body;
-  const prompt = `You are a subject expert in ${sub}. Your task is to generate a valid JSON object with two keys:
+  const prompt = `You are a strict JSON-only generator.
 
-1. "ques": An array of exactly 10 original multiple-choice questions.
-2. "desc": A short (1-2 line), factual description of the subject.
+Subject: ${sub}
 
-Each question must follow this format:
-{
-  "question": "A clearly worded question relevant to ${sub}",
-  "options": ["Option A", "Option B", "Option C", "Option D"],
-  "answer": 0
-}
+Generate a valid JSON object containing:
+- Exactly 2 unique, original, factual multiple-choice questions related to the subject.
+- A short, very tricky description (like gamified description) (1–2 lines) of the subject, with no answer hints.
 
-Strict rules:
-- Return ONLY a raw JSON object. Do NOT include markdown, comments, or explanations.
-- Use ONLY straight double quotes (").
-- All values must be strings, numbers, or arrays in valid JSON format.
-- No trailing commas.
-- Options must be relevant to the question.
-- Description must be neutral and not reveal any answers.
-
-DO NOT:
-- Wrap your output in backticks, code blocks, or markdown.
-- Repeat this template or example.
-
-The JSON should look like this:
+JSON FORMAT:
 {
   "ques": [
     {
-      "question": "Your first question here",
+      "question": "Your first question here?",
       "options": ["Option A", "Option B", "Option C", "Option D"],
-      "answer": 2
+      "answer": 0
     },
     {
-      "question": "Your second question here",
-      "options": ["A", "B", "C", "D"],
-      "answer": 1
+      "question": "Your second question here?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "answer": 2
     }
   ],
-  "desc": "A concise, neutral summary of ${sub}."
-}`;
+  "desc": "A neutral, brief summary of ${sub}, without referencing the questions or giving hints."
+}
+
+🔒 Rules:
+- DO NOT include markdown, backticks, comments, or explanations.
+- DO NOT repeat this template. Generate real content.
+- Use only straight double quotes (").
+- Return ONLY the raw JSON — no extra text.
+- Each "options" array MUST contain exactly 4 items.
+- "answer" must be a number: 0, 1, 2, or 3.
+- "desc" must be 1–2 lines and must not reveal any answers.
+
+💥 Example violations that are not allowed:
+- Answer index out of range.
+- More or fewer than 4 options.
+- Explanatory text or formatting outside the JSON block.
+`;
 
   try {
     const response = await axios.post("http://localhost:11434/api/generate", {
-      model: "llama3.2",
+      model: "gemma3:4b",
       prompt,
       stream: false,
     });
@@ -148,7 +147,6 @@ const activePolls = {};
 
 io.on("connection", (socket) => {
   console.log("🟢 New user connected:", socket.id);
-
   socket.on("join-room", (roomId) => {
     socket.join(roomId);
     console.log(`User ${socket.id} joined room ${roomId}`);
@@ -174,11 +172,16 @@ io.on("connection", (socket) => {
     if (!quiz) {
       return console.error("❌ No quiz found for room:", roomId);
     }
+
     io.to(roomId).emit("questions", {
       roomId: roomId,
-      questions: quiz.questions,
+      question: quiz.questions[0],
+      noofquestions: quiz.questions.length,
       createdBy: quiz.createdBy,
     });
+  });
+  socket.on("next-question", async ({ userSocket, queindex }) => {
+    socket.to(userSocket).emit(thequiz);
   });
 });
 

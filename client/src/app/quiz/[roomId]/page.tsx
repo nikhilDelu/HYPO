@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { io } from "socket.io-client";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,20 @@ export default function QuizPage() {
   const { user } = useUser();
   const searchParams = useSearchParams();
   const owner = searchParams.get("createdBy");
+  const router = useRouter();
+  function enterFullscreen() {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+      elem.requestFullscreen();
+    } else if ((elem as any).webkitRequestFullscreen) {
+      /* Safari */
+      (elem as any).webkitRequestFullscreen();
+    } else if ((elem as any).msRequestFullscreen) {
+      /* IE11 */
+      (elem as any).msRequestFullscreen();
+    }
+    socket.emit("get-quiz", { roomId });
+  }
 
   useEffect(() => {
     socket.emit("join-room", roomId);
@@ -36,6 +50,44 @@ export default function QuizPage() {
       socket.off("questions");
     };
   }, [roomId]);
+
+  useEffect(() => {
+    const handleBlur = () => {
+      alert("Don't switch tabs during the quiz!");
+      // or increment a counter, disqualify, etc.
+    };
+    window.addEventListener("blur", handleBlur);
+
+    return () => window.removeEventListener("blur", handleBlur);
+  }, []);
+
+  window.onbeforeunload = (e) => {
+    e.preventDefault();
+    e.returnValue = ""; // Show default browser confirmation
+  };
+
+  useEffect(() => {
+    const disableShortcuts = (e: KeyboardEvent) => {
+      if (
+        (e.ctrlKey &&
+          ["u", "s", "c", "v", "r"].includes(e.key.toLowerCase())) ||
+        e.key === "F12" ||
+        e.key === "esc"
+      ) {
+        e.preventDefault();
+      }
+    };
+
+    // const disableRightClick = (e: MouseEvent) => e.preventDefault();
+
+    document.addEventListener("keydown", disableShortcuts);
+    //  document.addEventListener("contextmenu", disableRightClick);
+
+    return () => {
+      document.removeEventListener("keydown", disableShortcuts);
+      //  document.removeEventListener("contextmenu", disableRightClick);
+    };
+  }, []);
 
   const handleAnswer = (index: number) => {
     if (!questions) return;
@@ -51,6 +103,10 @@ export default function QuizPage() {
         setFinished(true);
       }
     }, 600);
+  };
+
+  const handleResult = () => {
+    router.push(`/room/${roomId}/${owner}`);
   };
 
   const progress = questions
@@ -69,7 +125,7 @@ export default function QuizPage() {
 
         {!questions ? (
           <div className="text-center text-gray-500">
-            Waiting for questions...
+            Waiting for admin to start...
           </div>
         ) : finished ? (
           <div className="text-center space-y-4">
@@ -78,6 +134,12 @@ export default function QuizPage() {
             <p className="text-gray-700">
               Your score: {score} / {questions.length}
             </p>
+            <button
+              onClick={() => handleResult()}
+              className="mt-6 w-full bg-black text-white py-2 rounded-lg hover:bg-gray-800 transition-all"
+            >
+              Go to Room
+            </button>
           </div>
         ) : (
           <div>
@@ -112,7 +174,7 @@ export default function QuizPage() {
 
         {user?.id === owner && !questions && (
           <button
-            onClick={() => socket.emit("get-quiz", { roomId })}
+            onClick={() => enterFullscreen()}
             className="mt-6 w-full bg-black text-white py-2 rounded-lg hover:bg-gray-800 transition-all"
           >
             Load Quiz
