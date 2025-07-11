@@ -9,7 +9,12 @@ import http from "http";
 import Message from "./models/Message.js";
 import Quiz from "./models/Quiz.js";
 import axios from "axios";
+import Redis from "ioredis";
 
+const redis = new Redis({
+  host: "localhost",
+  port: 6969,
+});
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {

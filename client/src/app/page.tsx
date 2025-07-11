@@ -4,7 +4,7 @@ import { SignedIn, SignedOut } from "@clerk/nextjs";
 
 export default function HomePage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-4">
+    <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-4 ">
       <h1 className="text-4xl font-bold">Quiz Collab 🤝</h1>
       <p className="text-muted-foreground text-center">
         Collaborate with friends in real-time quizzes, chat, and polls!

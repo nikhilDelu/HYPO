@@ -104,17 +104,17 @@ export default function RoomView() {
     socket.emit("start", { roomId });
   };
   return (
-    <div className="flex gap-2 h-screen p-6">
+    <div className="flex gap-2 bg-black h-screen p-6">
       {desc?.length && (
         <div className="fixed bottom-8 w-full">
           <div onClick={startQuiz}>
-            <div className="w-66 active:scale-95 transition-all duration-300 cursor-pointer bg-black backdrop-blur-3xl select-none text-white p-4 rounded-full text-center mx-auto">
+            <div className="w-66 active:scale-95 transition-all duration-300 cursor-pointer  backdrop-blur-3xl select-none text-white p-4 rounded-full text-center mx-auto">
               Start The Battel
             </div>
           </div>
         </div>
       )}
-      <div className="w-full h-full bg-gray-100/50 rounded-lg border-2 border-gray-200 flex flex-col items-center justify-center p-2">
+      <div className="w-full h-full bg-[#ffff00] rounded-lg border-2 border-black flex flex-col items-center justify-center p-2">
         .
         {loading && (
           <div>

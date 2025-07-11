@@ -1,12 +1,11 @@
-"use client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useAuth } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import React, { useState } from "react";
+import { Input } from "./ui/input";
+import { Button } from "./ui/button";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 
-export default function RoomPage() {
+function Roomjoin() {
   const [roomName, setRoomName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const router = useRouter();
@@ -33,7 +32,7 @@ export default function RoomPage() {
         .then((res) => res.json())
         .then((data) => {
           if (data?.roomId) {
-            router.push(`/room/${data.roomId}/${data.createdBy}`);
+            router.push(`/dashboard/${data.roomId}/${data.createdBy}`);
           }
         })
         .catch((err) => {
@@ -47,10 +46,11 @@ export default function RoomPage() {
       toast.error("Enter a valid code");
       return;
     }
-    router.push(`/room/${joinCode}`);
+    router.push(`/dashboard/${joinCode}`);
   };
+
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen gap-8 px-4">
+    <>
       <h1 className="text-3xl font-bold">Quiz Room</h1>
 
       <div className="w-full max-w-md space-y-6">
@@ -78,6 +78,8 @@ export default function RoomPage() {
           </Button>
         </div>
       </div>
-    </main>
+    </>
   );
 }
+
+export default Roomjoin;
