@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import axios from "axios";
 import { toast } from "sonner";
-import TerminalInput from "@/components/Tinput";
+import { Check, Copy, Menu } from "lucide-react";
 
 const socket = io("http://localhost:5000", {
   transports: ["websocket"],
@@ -28,6 +28,18 @@ export default function RoomView() {
   const username = user?.fullName;
   const userId = user?.id;
   const [users, setUsers] = useState<{ username?: string }[]>([]);
+  const [copied, setCopied] = useState(false);
+  const fullCode = `${roomId}/${createdBy}`;
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(fullCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
 
   useEffect(() => {
     fetch("/data.json")
@@ -46,8 +58,6 @@ export default function RoomView() {
       socket.off("poll-ended");
     };
   }, [roomId]);
-
-  ///////
 
   useEffect(() => {
     if (!roomId) {
@@ -113,7 +123,7 @@ export default function RoomView() {
     socket.emit("start", { roomId });
   };
   return (
-    <div className="flex  max-h-screen overflow-hidden h-screen bg-black p-4">
+    <div className="flex  max-h-screen overflow-hidden h-screen fixed w-screen">
       {desc?.length && (
         <div className="fixed bottom-8 w-full">
           <div onClick={startQuiz}>
@@ -124,80 +134,137 @@ export default function RoomView() {
         </div>
       )}
       {/* participants */}
-      <div className="h-full w-[40%] border-r-1 border-black bg-[#d4dad3] flex flex-col">
+      <div className="h-screen w-[30%] border-r-1 border-black bg-[#d4dad3]  overflow-y-scroll min-w-52">
+        <div className="border-b-2 border-black flex items-center px-3 p-[6.4px]">
+          Participants
+        </div>
         {users.map((u, index) => (
           <div
-            className="border-b-1 border-black p-2 h-full font-mono"
+            className="flex items-center justify-start gap-2 border-b-1 border-black p-2 h-16 font-mono"
             key={index}
           >
-            {u && u?.username}
+            <span className="uppercase rounded-full bg-black size-8 min-w-8  text-[#d4dad3] flex items-center justify-center overflow-hidden">
+              {u && u?.username?.charAt(0)}
+            </span>
+            <span className="mb-1 max-w-32 line-clamp-1 overflow-hidden">
+              {u && u?.username}
+            </span>
+            <Menu className="ml-auto cursor-pointer" />
           </div>
         ))}
       </div>
       {/* Actions/info */}
-      <div className="w-full h-full  flex flex-col items-center bg-amber-400 justify-center p-2">
-        {loading && (
-          <div>
-            <div className="flex items-center justify-center h-full w-full">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-t-transparent border-black" />
-            </div>
+      <div className="w-full h-screen  flex flex-col relative">
+        {/* stats panel */}
+        <div className="flex-[1] p-[4.1px] border-b-2 border-gray-600 bg-black text-[#d4dad3] px-3 font-mono text-sm overflow-x-auto whitespace-nowrap flex items-center justify-between gap-2">
+          <div className="flex gap-6 min-w-max">
+            <span>📚 Subject: {desc ? desc.slice(0, 30) + "..." : "None"}</span>
+            <span>👥 Participants: {users.length}</span>
+            <span>💬 Messages: {messages.length}</span>
           </div>
-        )}
-        {!desc && !loading ? (
-          <div>{"desc"}</div>
-        ) : (
-          !loading && <div>No Description Yet!</div>
-        )}
+          <div className="text-green-400 animate-pulse min-w-max ml-auto pr-2">
+            ● Live
+          </div>
+        </div>
+
+        <div className="flex-[6] items-center flex justify-center">
+          {loading && (
+            <div>
+              <div className="flex items-center justify-center h-full w-full">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-t-transparent border-black" />
+              </div>
+            </div>
+          )}
+          {desc && !loading ? (
+            <div>{desc}</div>
+          ) : (
+            !loading && <div>No Description Yet!</div>
+          )}
+        </div>
+        <div className="bg-pink-400 flex-[8]">Poll</div>
+        <div className="bg-blue-400 flex-[8]">Other Stuff</div>
+        <div className="absolute bottom-2 flex items-center right-0 left-0 justify-center">
+          {user?.id == createdBy && (
+            <div className="flex gap-2 w-full max-w-xl backdrop-blur-3xl bg-white/20 p-2">
+              <Input
+                disabled={loading}
+                className="rounded-none "
+                value={subject}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !loading) {
+                    getQuiz();
+                  }
+                }}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="Subject..."
+              />
+              <Button
+                className="rounded-none"
+                disabled={loading}
+                onClick={getQuiz}
+              >
+                Generate
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
       {/* chat */}
-      <div className="w-[30%] h-full p-2 flex flex-col gap-6 justify-between bg-[#d4dad3] cursor-cell ">
-        <h1 className="text-2xl font-bold mb-4  overflow-ellipsis line-clamp-1 max-w-full">
-          Room: {roomId}/{createdBy}
-        </h1>
-        {user?.id == createdBy && (
-          <div className="flex gap-2 w-full max-w-xl ">
-            <Input
-              disabled={loading}
-              className="rounded-none "
-              value={subject}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !loading) {
-                  getQuiz();
-                }
-              }}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="Subject..."
-            />
-            <Button
-              className="rounded-none"
-              disabled={loading}
-              onClick={getQuiz}
-            >
-              Generate
-            </Button>
+      <div className="w-[26%] flex flex-col justify-between h-full bg-[#d4dad3] cursor-cell min-w-[20%]">
+        <h1
+          className="font-bold bg-black text-[#d4dad3] flex items-center justify-between cursor-pointer p-2 text-wrap border-b-2 border-gray-600 overflow-x-auto whitespace-nowrap"
+          onClick={copyToClipboard}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-green-400">{">"}</span>
+            <span className="max-w-52 overflow-hidden">{fullCode}</span>
           </div>
-        )}
-        <div className="w-full max-w-xl h-80 border p-4 overflow-y-auto mb-4">
+          {copied ? (
+            <Check className="w-4 h-4 text-green-500 ml-2" />
+          ) : (
+            <Copy className="w-4 h-4 ml-2 hover:text-green-400" />
+          )}
+        </h1>
+
+        <div className="w-full h-full max-w-full overflow-y-auto bg-black text-[#d4dad3] font-mono relative ">
           {messages.map((msg, idx) => (
             <div
               key={idx}
-              className={`${
-                msg.user.id === user?.id && "ml-auto"
-              } mb-2 w-fit font-mono capitalize text-black p-1 px-2 text-sm`}
+              className={`mb-2 max-w-[75%] px-3 py-1 text-sm break-words ${
+                msg.user.id === user?.id ? "ml-auto text-right " : "text-left "
+              } rounded shadow`}
             >
-              <strong>{msg.user.id === user?.id ? "" : msg.user.name}</strong>{" "}
-              {msg.message}
+              {msg.user.id !== user?.id && (
+                <div className="text-xs text-green-300 font-semibold mb-1">
+                  {msg.user.name}
+                </div>
+              )}
+              <div className="whitespace-pre-wrap">{msg.message}</div>
             </div>
           ))}
         </div>
-        <TerminalInput
-          onSend={(msg) => {
-            console.log("Sending:", msg);
-            sendMessage();
-          }}
-        />
+
+        <div className="relative w-full max-w-md border-0 bg-black  backdrop-blur-sm">
+          <Input
+            disabled={loading}
+            value={input}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !loading) {
+                sendMessage();
+              }
+            }}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Message..."
+            className="rounded-none text-[#d4dad3] caret-transparent font-mono text-base focus:outline-none border-0 px-3 py-2"
+          />
+          <span
+            className="absolute left-[calc(1ch+theme(spacing.3))] top-[50%] translate-y-[-50%] w-[1ch] h-[1.25em] bg-[#d4dad3] animate-blink pointer-events-none"
+            style={{
+              left: `calc(${input.length}ch + 12px)`,
+            }}
+          />
+        </div>
       </div>
     </div>
   );
 }
-

@@ -5,7 +5,13 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 
 function Roomjoin() {
   const [roomName, setRoomName] = useState("");
@@ -24,21 +30,23 @@ function Roomjoin() {
         return;
       }
       console.log("Creating room with token:", token);
-      axios.post("http://localhost:5000/api/rooms",
-        { name: roomName },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      ).then((res) => {
-        console.log("Room created successfully:", res.data);
-        if (res.data?.roomId) {
-
-          router.push(`/dashboard/${res.data.roomId}/${res.data.createdBy}`);
-        }
-      })
+      axios
+        .post(
+          "http://localhost:5000/api/rooms",
+          { name: roomName },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        )
+        .then((res) => {
+          console.log("Room created successfully:", res.data);
+          if (res.data?.roomId) {
+            router.push(`/dashboard/${res.data.roomId}/${res.data.createdBy}`);
+          }
+        })
         .catch((err) => {
           console.error("Error:", err);
           toast.error("Something went wrong");
@@ -56,7 +64,9 @@ function Roomjoin() {
   return (
     <>
       <Dialog>
-        <DialogTrigger>Enter Room</DialogTrigger>
+        <DialogTrigger className="cursor-pointer h-full w-full">
+          Enter Room
+        </DialogTrigger>
         <DialogContent className="bg-[#d4dad3]">
           <DialogHeader>
             <DialogTitle>Enter Room</DialogTitle>
@@ -82,7 +92,11 @@ function Roomjoin() {
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value)}
               />
-              <Button onClick={handleJoin} variant="secondary" className="w-full">
+              <Button
+                onClick={handleJoin}
+                variant="secondary"
+                className="w-full"
+              >
                 Join Room
               </Button>
             </div>
