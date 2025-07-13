@@ -50,7 +50,7 @@ function Roomjoin() {
   };
 
   return (
-    <>
+    <div className="flex flex-col w-full justify-center items-center">
       <h1 className="text-3xl font-bold">Quiz Room</h1>
 
       <div className="w-full max-w-md space-y-6">
@@ -78,7 +78,7 @@ function Roomjoin() {
           </Button>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 

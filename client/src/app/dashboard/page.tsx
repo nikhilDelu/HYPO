@@ -1,4 +1,5 @@
 "use client";
+import Roomjoin from "@/components/Roomjoin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@clerk/nextjs";
@@ -79,7 +80,9 @@ export default function RoomPage() {
           <div className="border-1 h-32 w-[58%] border-black"></div>
         </div>
       </div>
-      <div className="flex-grow-[12]"></div>
+      <div className="flex-grow-[12] flex justify-center items-center">
+        <Roomjoin />
+      </div>
     </main>
   );
 }
