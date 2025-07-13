@@ -10,7 +10,11 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.23.3",
+<<<<<<< HEAD
     "@radix-ui/react-separator": "^1.1.7",
+=======
+    "@radix-ui/react-dialog": "^1.1.14",
+>>>>>>> ac64fdace7bcb925c409ab14a22d644100198391
     "@radix-ui/react-slot": "^1.2.3",
     "axios": "^1.10.0",
     "class-variance-authority": "^0.7.1",
