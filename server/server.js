@@ -9,12 +9,8 @@ import http from "http";
 import Message from "./models/Message.js";
 import Quiz from "./models/Quiz.js";
 import axios from "axios";
-import Redis from "ioredis";
+import { createClient } from "redis";
 
-const redis = new Redis({
-  host: "localhost",
-  port: 6969,
-});
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -26,6 +22,17 @@ const io = new Server(server, {
 mongoose.connect(
   "mongodb+srv://projectyjka:53yjka21@asciicluster0.pgohfwc.mongodb.net/ASCIIdb"
 );
+
+const redis = createClient({
+  url: "redis://172.24.138.232:6379",
+});
+
+
+
+redis.on("error", (err) => console.error("Redis Client Error", err));
+
+await redis.connect();
+
 app.use(cors({ origin: "http://localhost:3000", credentials: true }));
 app.use(express.json());
 app.use(clerkMiddleware({}));
@@ -37,6 +44,12 @@ app.post("/api/rooms", requireAuth(), async (req, res) => {
   const { name } = req.body;
   const roomId = Math.random().toString(36).substring(2, 10);
   const createdBy = req.auth.userId;
+  const robj = {
+    roomId: roomId,
+    rname: name,
+    createdBy: createdBy,
+  }
+  const saved = await redis.json.set(`room:${roomId}`, "$", JSON.stringify(robj));
 
   const room = await Room.create({ roomId, name, createdBy });
   res.json({ roomId: room.roomId, createdBy: room.createdBy, name: room.name });
@@ -44,9 +57,11 @@ app.post("/api/rooms", requireAuth(), async (req, res) => {
 app.get("/api/messages/:roomId", requireAuth(), async (req, res) => {
   const { roomId } = req.params;
 
-  const messages = await Message.find({ roomId }).sort({ createdAt: 1 });
-
-  res.json(messages);
+  const messages = await redis.lRange(`room:${roomId}:messages`, 0, -1);
+  
+  const rmsgs = messages.map((msg) => JSON.parse(msg));
+  console.log("Messages from Redis:", rmsgs);
+  res.json(rmsgs);
 });
 
 // quiz part
@@ -152,17 +167,29 @@ const activePolls = {};
 
 io.on("connection", (socket) => {
   console.log("🟢 New user connected:", socket.id);
+
+  // Join room
   socket.on("join-room", (roomId) => {
     socket.join(roomId);
+
     console.log(`User ${socket.id} joined room ${roomId}`);
   });
+
+  // Chatting
   socket.on("chat-message", async ({ roomId, message, user }) => {
-    const msg = await Message.create({ roomId, message, user });
+    const msg = {
+      roomId: roomId,
+      message: message,
+      user: user,
+      timestamp: new Date().toISOString(),
+    }
+    // const msg = await Message.create({ roomId, message, user });
+    console.log("New message:", msg);
+    await redis.rPush(`room:${roomId}:messages`, JSON.stringify(msg));
     io.to(roomId).emit("chat-message", { message, user });
   });
-  socket.on("disconnect", () => {
-    console.log("🔴 User disconnected:", socket.id);
-  });
+
+  //Go to quiz  
   socket.on("start", ({ roomId }) => {
     try {
       io.to(roomId).emit("quiz-started", {
@@ -172,22 +199,31 @@ io.on("connection", (socket) => {
       console.error(error);
     }
   });
+
+  // Generate Quiz
   socket.on("get-quiz", async ({ roomId }) => {
     const quiz = await Quiz.findOne({ roomId });
     if (!quiz) {
       return console.error("❌ No quiz found for room:", roomId);
     }
-
     io.to(roomId).emit("questions", {
       roomId: roomId,
       question: quiz.questions[0],
-      noofquestions: quiz.questions.length,
+      noquest: quiz.questions.length,
       createdBy: quiz.createdBy,
     });
   });
+
+  // Handle next question
   socket.on("next-question", async ({ userSocket, queindex }) => {
     socket.to(userSocket).emit(thequiz);
   });
+
+
+  socket.on("disconnect", () => {
+    console.log("🔴 User disconnected:", socket.id);
+  });
+
 });
 
 server.listen(5000, () =>
