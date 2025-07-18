@@ -18,7 +18,7 @@ export default function RoomView() {
   const { getToken } = useAuth();
   const router = useRouter();
   const [messages, setMessages] = useState<
-    { message: string; user: { id: string; name: string } }[]
+    { message: string; user: { id: string; name: string }; createdAt: Date }[]
   >([]);
   const [desc, setDesc] = useState<string>();
   const [loading, setLoading] = useState<boolean>(false);
@@ -68,7 +68,10 @@ export default function RoomView() {
       router.push(`/quiz/${roomId}?createdBy=${createdBy}`);
     });
     socket.on("chat-message", ({ message, user }) => {
-      setMessages((prev) => [...prev, { message, user }]);
+      setMessages((prev) => [
+        ...prev,
+        { message, user, createdAt: new Date() },
+      ]);
     });
     getToken()
       .then((token) => {
@@ -95,6 +98,7 @@ export default function RoomView() {
       user: {
         id: userId,
         name: username,
+        createdAt: new Date(),
       },
     });
     setInput("");
@@ -134,7 +138,7 @@ export default function RoomView() {
         </div>
       )}
       {/* participants */}
-      <div className="h-screen w-[30%] border-r-1 border-black bg-[#d4dad3]  overflow-y-scroll min-w-52">
+      <div className="h-screen w-[30%] border-r-1 border-black bg-[#d4dad3]  overflow-y-scroll min-w-52 shadow-2xl">
         <div className="border-b-2 border-black flex items-center px-3 p-[6.4px]">
           Participants
         </div>
@@ -156,7 +160,7 @@ export default function RoomView() {
       {/* Actions/info */}
       <div className="w-full h-screen  flex flex-col relative">
         {/* stats panel */}
-        <div className="flex-[1] p-[4.1px] border-b-2 border-gray-600 bg-black text-[#d4dad3] px-3 font-mono text-sm overflow-x-auto whitespace-nowrap flex items-center justify-between gap-2">
+        <div className="shadow-2xl flex-[1] p-[4.1px] border-b-2 border-gray-600 bg-black text-[#d4dad3] px-3 font-mono text-sm overflow-x-auto whitespace-nowrap flex items-center justify-between gap-2">
           <div className="flex gap-6 min-w-max">
             <span>📚 Subject: {desc ? desc.slice(0, 30) + "..." : "None"}</span>
             <span>👥 Participants: {users.length}</span>
@@ -167,7 +171,8 @@ export default function RoomView() {
           </div>
         </div>
 
-        <div className="flex-[6] items-center flex justify-center">
+        {/* desc */}
+        <div className="flex-[6] bg-black items-center flex justify-center">
           {loading && (
             <div>
               <div className="flex items-center justify-center h-full w-full">
@@ -181,14 +186,16 @@ export default function RoomView() {
             !loading && <div>No Description Yet!</div>
           )}
         </div>
-        <div className="bg-pink-400 flex-[8]">Poll</div>
-        <div className="bg-blue-400 flex-[8]">Other Stuff</div>
+        {/* Poll */}
+        <div className="bg-black flex-[8]">Poll</div>
+        {/* Other stuff */}
+        <div className="bg-black flex-[8]">Other Stuff</div>
         <div className="absolute bottom-2 flex items-center right-0 left-0 justify-center">
           {user?.id == createdBy && (
-            <div className="flex gap-2 w-full max-w-xl backdrop-blur-3xl bg-white/20 p-2">
+            <div className="flex gap-2 w-full max-w-xl backdrop-blur-3xl shadow-2xl">
               <Input
                 disabled={loading}
-                className="rounded-none "
+                className="rounded-none border-[#d4dad3] text-[#d4dad3]"
                 value={subject}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !loading) {
@@ -210,19 +217,21 @@ export default function RoomView() {
         </div>
       </div>
       {/* chat */}
-      <div className="w-[26%] flex flex-col justify-between h-full bg-[#d4dad3] cursor-cell min-w-[20%]">
+      <div className="w-[26%] border-l-2 border-gray-600 overflow-hidden flex flex-col justify-between h-full bg-[#d4dad3] cursor-cell min-w-[20%] shadow-2xl">
         <h1
-          className="font-bold bg-black text-[#d4dad3] flex items-center justify-between cursor-pointer p-2 text-wrap border-b-2 border-gray-600 overflow-x-auto whitespace-nowrap"
+          className="font-bold bg-black text-[#d4dad3] flex items-center justify-between cursor-pointer p-2 text-wrap border-b-2 border-gray-600 overflow-x-auto whitespace-nowrap group"
           onClick={copyToClipboard}
         >
           <div className="flex items-center gap-2">
             <span className="text-green-400">{">"}</span>
-            <span className="max-w-52 overflow-hidden">{fullCode}</span>
+            <span className="max-w-52 text-[#d4dad3] overflow-hidden">
+              {fullCode}
+            </span>
           </div>
           {copied ? (
             <Check className="w-4 h-4 text-green-500 ml-2" />
           ) : (
-            <Copy className="w-4 h-4 ml-2 hover:text-green-400" />
+            <Copy className="w-4 h-4 ml-2 group-hover:text-green-400" />
           )}
         </h1>
 
@@ -230,16 +239,40 @@ export default function RoomView() {
           {messages.map((msg, idx) => (
             <div
               key={idx}
-              className={`mb-2 max-w-[75%] px-3 py-1 text-sm break-words ${
+              className={`max-w-[75%] px-3 w-fit py-1 text-sm break-words flex gap-1 ${
                 msg.user.id === user?.id ? "ml-auto text-right " : "text-left "
               } rounded shadow`}
             >
               {msg.user.id !== user?.id && (
-                <div className="text-xs text-green-300 font-semibold mb-1">
-                  {msg.user.name}
-                </div>
+                <span className="bg-green-600 text-green-600 w-[2.5px] text-[0px]">
+                  |
+                </span>
               )}
-              <div className="whitespace-pre-wrap">{msg.message}</div>
+              <div className="max-w-full">
+                {msg.user.id !== user?.id && (
+                  <div className="text-[10px] text-green-300 font-semibold">
+                    {msg.user.name}
+                  </div>
+                )}
+                <div
+                  className={`whitespace-pre-wrap text-[16px] leading-tight flex gap-2 p-1 rounded- ${
+                    msg.user.id !== user?.id
+                      ? "justify-start text-left"
+                      : "justify-end text-right flex-row-reverse"
+                  }`}
+                >
+                  {/* Message */}
+                  <div className="max-w-40">{msg.message}</div>
+
+                  {/* Timestamp */}
+                  <div className="text-[8px] w-11 line-clamp-1 text-gray-400 mt-auto mb-[1px] z-50">
+                    {new Date(msg.createdAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                </div>
+              </div>
             </div>
           ))}
         </div>

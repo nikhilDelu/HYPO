@@ -1,17 +1,30 @@
 "use client";
 import Roomjoin from "@/components/Roomjoin";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function RoomPage() {
   const date = new Date();
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const weekdayName = days[date.getDay()];
   const [hidden, setHidden] = useState(false);
+  const [userMetrics, setUserMetrics] = useState(null);
+
+  useEffect(() => {
+    fetch("/userMetrics.json")
+      .then((response) => response.json())
+      .then((jsonData) => {
+        setUserMetrics(jsonData);
+      })
+      .catch((error) => console.error("Error loading JSON:", error));
+  }, []);
+
   return (
     <main className="flex flex-col min-h-screen w-screen overflow-hidden">
       <div className="flex-grow-[1] flex justify-between border-b-2 border-black">
         <span className="w-[40%] flex items-center justify-center bg-black text-white text-4xl font-bold">
-          H Y<span className="bg-[#d4dad3] text-black px-1 mx-2">P</span>O
+          H Y
+          <span className="bg-[#d4dad3] rotate-12 text-black px-1 mx-2">P</span>
+          O
         </span>
         <div className="p-0 w-full flex justify-between border-black border-x-2 ">
           <span className="border-r-2 w-full h-full flex items-center justify-center border-black hover:text-[#d4dad3] hover:bg-black transition-all duration-100 cursor-pointer">
@@ -71,11 +84,60 @@ export default function RoomPage() {
           </div>
         </div>
         <div className="w-full flex-grow[2] flex items-center pr-20 gap-4 relative  ">
-          <div className="border-1 h-32 w-[36%] border-black"></div>
-          <div className="border-1 h-32 w-[58%] border-black relative"> </div>
+          <div className="border-2 h-32 w-[36%] min-w-32 border-black/90 text-black/90 flex flex-col justify-between p-2 pb-[4px] relative">
+            <div className="flex justify-between h-full">
+              <div className="h-full border-3 border-black/90 w-6 flex items-end relative">
+                <div
+                  style={{ height: `${userMetrics?.rank || 50}%` }}
+                  className={`min-w-full bg-black/90`}
+                />
+              </div>
+              <div className="h-full border-3 border-black/90 w-6 flex items-end relative">
+                <div
+                  style={{ height: `${userMetrics?.rank || 50}%` }}
+                  className={`min-w-full bg-black/90`}
+                />
+              </div>
+              <div className="h-full border-3 border-black/90 w-6 flex items-end relative">
+                <div
+                  style={{ height: `${userMetrics?.rank || 50}%` }}
+                  className={`min-w-full bg-black/90`}
+                />
+              </div>
+              <div className="h-full border-3 border-black/90 w-6 flex items-end relative">
+                <div
+                  style={{ height: `${userMetrics?.rank || 50}%` }}
+                  className={`min-w-full bg-black/90`}
+                />
+              </div>
+            </div>
+            <div className="w-full h-5 flex justify-between px-2 font-semibold">
+              <span>A</span>
+              <span>D</span>
+              <span>S</span>
+              <span>R</span>
+            </div>
+          </div>
+
+          <div className="border-1 h-32 w-[58%] border-black/90 relative flex flex-col">
+            <div className="h-6 w-full border-b-1 border-black/90">top</div>
+            <div className="flex gap-2 p-2 h-full">
+              <div className="w-full h-full flex flex-col justify-around p-2">
+                <div className="flex justify-between items-center">
+                  <span>Invested</span>
+                  <span className="border border-black/90">571</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Recovered</span>
+                  <span className="border border-black/90">571</span>
+                </div>
+              </div>
+              <div className="w-[45%] h-full bg-red-900">2</div>
+            </div>
+          </div>
         </div>
       </div>
-      <div className="flex-grow-[12] bg-[#fa6f38] flex justify-center items-center">
+      <div className="flex-grow-[12] bg-[#d4dad3] border-t-2 border-black flex justify-center items-center">
         <Roomjoin />
       </div>
     </main>
