@@ -24,10 +24,8 @@ mongoose.connect(
 );
 
 const redis = createClient({
-  url: "redis://172.24.138.232:6379",
+  url: "redis://172.25.96.1:6379",
 });
-
-
 
 redis.on("error", (err) => console.error("Redis Client Error", err));
 
@@ -48,8 +46,12 @@ app.post("/api/rooms", requireAuth(), async (req, res) => {
     roomId: roomId,
     rname: name,
     createdBy: createdBy,
-  }
-  const saved = await redis.json.set(`room:${roomId}`, "$", JSON.stringify(robj));
+  };
+  const saved = await redis.json.set(
+    `room:${roomId}`,
+    "$",
+    JSON.stringify(robj)
+  );
 
   const room = await Room.create({ roomId, name, createdBy });
   res.json({ roomId: room.roomId, createdBy: room.createdBy, name: room.name });
@@ -58,7 +60,7 @@ app.get("/api/messages/:roomId", requireAuth(), async (req, res) => {
   const { roomId } = req.params;
 
   const messages = await redis.lRange(`room:${roomId}:messages`, 0, -1);
-  
+
   const rmsgs = messages.map((msg) => JSON.parse(msg));
   console.log("Messages from Redis:", rmsgs);
   res.json(rmsgs);
@@ -182,14 +184,14 @@ io.on("connection", (socket) => {
       message: message,
       user: user,
       timestamp: new Date().toISOString(),
-    }
+    };
     // const msg = await Message.create({ roomId, message, user });
     console.log("New message:", msg);
     await redis.rPush(`room:${roomId}:messages`, JSON.stringify(msg));
     io.to(roomId).emit("chat-message", { message, user });
   });
 
-  //Go to quiz  
+  //Go to quiz
   socket.on("start", ({ roomId }) => {
     try {
       io.to(roomId).emit("quiz-started", {
@@ -219,11 +221,9 @@ io.on("connection", (socket) => {
     socket.to(userSocket).emit(thequiz);
   });
 
-
   socket.on("disconnect", () => {
     console.log("🔴 User disconnected:", socket.id);
   });
-
 });
 
 server.listen(5000, () =>
