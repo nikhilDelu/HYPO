@@ -39,6 +39,10 @@ const quizSchema = new mongoose.Schema(
       type:Number,
       required: true,
     },
+    totalScore: {
+      type: Number,
+      default: 0,
+    },
     createdBy: {
       type: String, // Clerk userId
       required: true,
