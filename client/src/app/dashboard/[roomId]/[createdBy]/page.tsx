@@ -12,6 +12,7 @@ import { Check, Copy, Menu } from "lucide-react";
 
 const socket = io("http://localhost:5000", {
   transports: ["websocket"],
+  autoConnect: false,
 });
 export default function RoomView() {
   const { roomId, createdBy } = useParams();
@@ -30,6 +31,7 @@ export default function RoomView() {
   const [users, setUsers] = useState<{ username?: string }[]>([]);
   const [copied, setCopied] = useState(false);
   const fullCode = `${roomId}/${createdBy}`;
+  const [entryfee, setEntryfee] = useState(100);
 
   const copyToClipboard = async () => {
     try {
@@ -49,21 +51,24 @@ export default function RoomView() {
   }, []);
 
   useEffect(() => {
-    if (!roomId) return;
-    socket.emit("join-room", roomId);
+    if (!roomId || !userId) return;
+    if (!socket.connected) {
+      socket.connect();
+    }
+    socket.emit("join-room", roomId, userId);
 
     return () => {
       socket.off("poll-started");
       socket.off("poll-updated");
       socket.off("poll-ended");
     };
-  }, [roomId]);
+  }, [roomId, userId]);
 
   useEffect(() => {
-    if (!roomId) {
+    if (!roomId || !userId) {
       return;
     }
-    socket.emit("join-room", roomId);
+    socket.emit("join-room", roomId, userId);
     socket.on("quiz-started", () => {
       router.push(`/quiz/${roomId}?createdBy=${createdBy}`);
     });
@@ -111,6 +116,7 @@ export default function RoomView() {
           sub: subject,
           createdBy,
           roomId,
+          entryfee
         })
         .then((res) => {
           console.log("descriptoion here: ", res.data);

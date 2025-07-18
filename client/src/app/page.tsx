@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "../components/ui/button";
-import { SignedIn, SignedOut } from "@clerk/nextjs";
+import { SignedIn, SignedOut, SignOutButton } from "@clerk/nextjs";
 
 export default function HomePage() {
   return (
@@ -25,7 +25,9 @@ export default function HomePage() {
         <Link href="/dashboard">
           <Button>Go to Dashboard</Button>
         </Link>
+        <SignOutButton>Sign Out</SignOutButton>
       </SignedIn>
+
     </main>
   );
 }
