@@ -35,6 +35,10 @@ const quizSchema = new mongoose.Schema(
       type: [questionSchema],
       required: true,
     },
+    entryfee:{
+      type:Number,
+      required: true,
+    },
     createdBy: {
       type: String, // Clerk userId
       required: true,
