@@ -6,9 +6,11 @@ import { useUser } from "@clerk/nextjs";
 import { io } from "socket.io-client";
 import { cn } from "@/lib/utils";
 import { CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const socket = io("http://localhost:5000", {
   transports: ["websocket"],
+  autoConnect: false,
 });
 
 // Type for a single question
@@ -16,12 +18,15 @@ interface Question {
   q: string;
   opts: [string, string, string, string];
   ans: number; // index of correct option
+  _id: string;
 }
 
 export default function QuizPage() {
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [question, setQuestion] = useState<Question>(); // *
+  const [currentIndex, setCurrentIndex] = useState(0); // *
   const [selected, setSelected] = useState<number[]>([]);
+  const [isCorrect, setIsCorrect] = useState(false); // *
+  const [quizLength, setQuizLength] = useState(0); // *
   const [score, setScore] = useState(0);
   const [finished, setFinished] = useState(false);
   const { roomId } = useParams();
@@ -29,7 +34,7 @@ export default function QuizPage() {
   const searchParams = useSearchParams();
   const owner = searchParams.get("createdBy");
   const router = useRouter();
-
+  const userId = user?.id
   // Fullscreen and emit quiz
   function enterFullscreen() {
     const elem = document.documentElement;
@@ -40,19 +45,37 @@ export default function QuizPage() {
     } else if ((elem as any).msRequestFullscreen) {
       (elem as any).msRequestFullscreen();
     }
-    socket.emit("get-quiz", { roomId });
+    socket.emit("get-quiz", { roomId, userId });
   }
 
   // Join room and receive questions
   useEffect(() => {
     if (!user?.id) return;
-
+    if (!socket.connected) {
+      socket.connect();
+    }
     socket.emit("join-room", roomId, user.id); // Pass userId as well
 
-    socket.on("questions", ({ question }: { question: any }) => {
-      setQuestions([question]); // Wrap single question in array
-      console.log("Received quiz:", question);
+    //On Rejoining the Quiz
+    socket.on("continue-quiz", (data) => {
+      console.log(data);
+      socket.emit("next-question", { roomId, queindex: data, userId: user?.id, isCorrect: false });
+
+    })
+
+    //First Question and Metadata
+    socket.on("questions", (data) => {
+      console.log(data);
+      setQuestion(data.question); // Wrap single question in array
+      setQuizLength(data.noquest);
+      console.log("Received quiz:", data.question);
     });
+
+    //For next Question
+    socket.on("next-question", (data) => {
+      setQuestion(data);
+      //console.log("From next-question Recieved Question: ", data);
+    })
 
     return () => {
       socket.off("questions");
@@ -60,13 +83,13 @@ export default function QuizPage() {
   }, [roomId, user?.id]);
 
   // Prevent user from switching tabs
-  useEffect(() => {
-    const handleBlur = () => {
-      alert("Don't switch tabs during the quiz!");
-    };
-    window.addEventListener("blur", handleBlur);
-    return () => window.removeEventListener("blur", handleBlur);
-  }, []);
+  // useEffect(() => {
+  //   const handleBlur = () => {
+  //     alert("Don't switch tabs during the quiz!");
+  //   };
+  //   window.addEventListener("blur", handleBlur);
+  //   return () => window.removeEventListener("blur", handleBlur);
+  // }, []);
 
   // Prevent reload
   useEffect(() => {
@@ -87,15 +110,18 @@ export default function QuizPage() {
         e.preventDefault();
       }
     };
+
     document.addEventListener("keydown", handleKeyboard);
-    return () => document.removeEventListener("keydown", handleKeyboard);
+    return () => {
+      document.removeEventListener("keydown", handleKeyboard);
+    }
   }, []);
 
   // Handle answer click
   const handleAnswer = (optionIndex: number) => {
     if (selected[currentIndex] !== undefined) return;
 
-    const isCorrect = questions[currentIndex].ans === optionIndex;
+    setIsCorrect(question?.ans === optionIndex);
     if (isCorrect) setScore((prev) => prev + 1);
 
     setSelected((prev) => {
@@ -104,13 +130,22 @@ export default function QuizPage() {
       return updated;
     });
 
-    setTimeout(() => {
-      if (currentIndex + 1 < questions.length) {
-        setCurrentIndex(currentIndex + 1);
-      } else {
-        setFinished(true);
-      }
-    }, 600);
+    // setTimeout(() => {
+    //   if (currentIndex + 1 < questions.length) {
+    //     setCurrentIndex(currentIndex + 1);
+    //   } else {
+    //     setFinished(true);
+    //   }
+    // }, 600);
+  };
+
+  const handleNextQuestion = () => {
+    socket.emit("next-question", { roomId, queindex: currentIndex + 1, userId: user?.id, isCorrect });
+
+    setCurrentIndex((prev) => prev + 1)
+    if (currentIndex >= 10) {
+      setCurrentIndex(0);
+    };
   };
 
   // Handle result page navigation
@@ -122,7 +157,7 @@ export default function QuizPage() {
     <div className="min-h-screen bg-white text-black px-4 py-6 flex items-center justify-center">
       <div className="w-full max-w-2xl">
         {/* Owner clicks to load the quiz */}
-        {user?.id === owner && questions.length === 0 && (
+        {user?.id === owner && (
           <button
             onClick={enterFullscreen}
             className="w-full py-3 bg-black text-white font-semibold rounded-lg hover:bg-gray-800 transition-all"
@@ -132,16 +167,16 @@ export default function QuizPage() {
         )}
 
         {/* Quiz section */}
-        {!finished && questions.length > 0 && (
+        {!finished && question && (
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">
-              {`Question ${currentIndex + 1} of ${questions.length}`}
+              {`Question ${currentIndex + 1} of ${quizLength}`}
             </h2>
-            <p className="text-xl mb-4">{questions[currentIndex].q}</p>
+            <p className="text-xl mb-4">{question?.q}</p>
             <ul className="space-y-2">
-              {questions[currentIndex].opts.map((opt, idx) => {
+              {question?.opts.map((opt, idx) => {
                 const isSelected = selected[currentIndex] === idx;
-                const isCorrect = questions[currentIndex].ans === idx;
+                const isCorrect = question.ans === idx;
                 const isAnswered = selected[currentIndex] !== undefined;
 
                 return (
@@ -164,6 +199,9 @@ export default function QuizPage() {
                 );
               })}
             </ul>
+            <Button onClick={handleNextQuestion}>
+              Next
+            </Button>
           </div>
         )}
 
@@ -173,7 +211,7 @@ export default function QuizPage() {
             <CheckCircle2 className="mx-auto h-12 w-12 text-green-500" />
             <h2 className="text-2xl font-bold">Quiz Completed</h2>
             <p className="text-lg font-semibold">
-              Your score: {score} / {questions.length}
+              Your score: {score} / {quizLength}
             </p>
             <button
               onClick={handleResult}
