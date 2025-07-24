@@ -12,6 +12,7 @@ import { Check, Copy, Menu } from "lucide-react";
 
 const socket = io("http://localhost:5000", {
   transports: ["websocket"],
+  autoConnect: false,
 });
 export default function RoomView() {
   const { roomId, createdBy } = useParams();
@@ -30,6 +31,7 @@ export default function RoomView() {
   const [users, setUsers] = useState<{ username?: string }[]>([]);
   const [copied, setCopied] = useState(false);
   const fullCode = `${roomId}/${createdBy}`;
+  const [entryfee, setEntryfee] = useState(100);
 
   const copyToClipboard = async () => {
     try {
@@ -49,24 +51,45 @@ export default function RoomView() {
   }, []);
 
   useEffect(() => {
-    if (!roomId) return;
-    socket.emit("join-room", roomId);
+    if (!roomId || !userId) return;
+    if (!socket.connected) {
+      socket.connect();
+    }
+    socket.emit("join-room", roomId, userId);
 
     return () => {
       socket.off("poll-started");
       socket.off("poll-updated");
       socket.off("poll-ended");
     };
-  }, [roomId]);
+  }, [roomId, userId]);
 
   useEffect(() => {
-    if (!roomId) {
+    if (!roomId || !createdBy) return;
+
+    const handleQuizStarted = () => {
+      router.push(`/quiz/${roomId}?createdBy=${createdBy}`);
+    };
+
+    socket.on("quiz-started", handleQuizStarted);
+
+    return () => {
+      socket.off("quiz-started", handleQuizStarted);
+    };
+  }, [roomId, createdBy, router]);
+
+
+  useEffect(() => {
+    if (!roomId || !userId) {
       return;
     }
-    socket.emit("join-room", roomId);
-    socket.on("quiz-started", () => {
+    socket.emit("join-room", roomId, userId);
+    const handleQuizStarted = () => {
       router.push(`/quiz/${roomId}?createdBy=${createdBy}`);
-    });
+    };
+
+    socket.on("quiz-started", handleQuizStarted);
+
     socket.on("chat-message", ({ message, user }) => {
       setMessages((prev) => [
         ...prev,
@@ -86,9 +109,10 @@ export default function RoomView() {
         setMessages(data);
       });
     return () => {
+      socket.off("quiz-started", handleQuizStarted);
       socket.off("chat-message");
     };
-  }, [roomId]);
+  }, [roomId, createdBy, router]);
 
   const sendMessage = () => {
     if (!input.trim()) return;
@@ -111,9 +135,10 @@ export default function RoomView() {
           sub: subject,
           createdBy,
           roomId,
+          entryfee
         })
         .then((res) => {
-          console.log("descriptoion here: ", res.data);
+          console.log("descriptoion here: ", res.data.desc);
           setDesc(res.data.desc);
           setSubject("");
           setLoading(false);
@@ -128,10 +153,10 @@ export default function RoomView() {
   };
   return (
     <div className="flex  max-h-screen overflow-hidden h-screen fixed w-screen">
-      {desc?.length && (
-        <div className="fixed bottom-8 w-full">
+      {desc && (
+        <div className="fixed bottom-8 z-50 w-full">
           <div onClick={startQuiz}>
-            <div className="w-66 active:scale-95 transition-all duration-300 cursor-pointer  backdrop-blur-3xl select-none text-white p-4 rounded-full text-center mx-auto">
+            <div className="w-66 active:scale-95 transition-all duration-300 cursor-pointer  backdrop-blur-3xl select-none p-4 rounded-full text-center mx-auto bg-[#d4dad3] text-black">
               Start The Battel
             </div>
           </div>
@@ -239,9 +264,8 @@ export default function RoomView() {
           {messages.map((msg, idx) => (
             <div
               key={idx}
-              className={`max-w-[75%] px-3 w-fit py-1 text-sm break-words flex gap-1 ${
-                msg.user.id === user?.id ? "ml-auto text-right " : "text-left "
-              } rounded shadow`}
+              className={`max-w-[75%] px-3 w-fit py-1 text-sm break-words flex gap-1 ${msg.user.id === user?.id ? "ml-auto text-right " : "text-left "
+                } rounded shadow`}
             >
               {msg.user.id !== user?.id && (
                 <span className="bg-green-600 text-green-600 w-[2.5px] text-[0px]">
@@ -255,11 +279,10 @@ export default function RoomView() {
                   </div>
                 )}
                 <div
-                  className={`whitespace-pre-wrap text-[16px] leading-tight flex gap-2 p-1 rounded- ${
-                    msg.user.id !== user?.id
-                      ? "justify-start text-left"
-                      : "justify-end text-right flex-row-reverse"
-                  }`}
+                  className={`whitespace-pre-wrap text-[16px] leading-tight flex gap-2 p-1 rounded- ${msg.user.id !== user?.id
+                    ? "justify-start text-left"
+                    : "justify-end text-right flex-row-reverse"
+                    }`}
                 >
                   {/* Message */}
                   <div className="max-w-40">{msg.message}</div>

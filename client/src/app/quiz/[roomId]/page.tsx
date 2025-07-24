@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -10,14 +11,15 @@ const socket = io("http://localhost:5000", {
   transports: ["websocket"],
 });
 
+// Type for a single question
 interface Question {
-  question: string;
-  options: [string, string, string, string];
-  answer: number;
+  q: string;
+  opts: [string, string, string, string];
+  ans: number; // index of correct option
 }
 
 export default function QuizPage() {
-  const [questions, setQuestions] = useState<Question[]>();
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selected, setSelected] = useState<number[]>([]);
   const [score, setScore] = useState(0);
@@ -27,158 +29,159 @@ export default function QuizPage() {
   const searchParams = useSearchParams();
   const owner = searchParams.get("createdBy");
   const router = useRouter();
+
+  // Fullscreen and emit quiz
   function enterFullscreen() {
     const elem = document.documentElement;
     if (elem.requestFullscreen) {
       elem.requestFullscreen();
     } else if ((elem as any).webkitRequestFullscreen) {
-      /* Safari */
       (elem as any).webkitRequestFullscreen();
     } else if ((elem as any).msRequestFullscreen) {
-      /* IE11 */
       (elem as any).msRequestFullscreen();
     }
     socket.emit("get-quiz", { roomId });
   }
 
+  // Join room and receive questions
   useEffect(() => {
-    socket.emit("join-room", roomId);
-    socket.on("questions", ({ questions }) => {
-      setQuestions(questions);
+    if (!user?.id) return;
+
+    socket.emit("join-room", roomId, user.id); // Pass userId as well
+
+    socket.on("questions", ({ question }: { question: any }) => {
+      setQuestions([question]); // Wrap single question in array
+      console.log("Received quiz:", question);
     });
+
     return () => {
       socket.off("questions");
     };
-  }, [roomId]);
+  }, [roomId, user?.id]);
 
+  // Prevent user from switching tabs
   useEffect(() => {
     const handleBlur = () => {
       alert("Don't switch tabs during the quiz!");
-      // or increment a counter, disqualify, etc.
     };
     window.addEventListener("blur", handleBlur);
-
     return () => window.removeEventListener("blur", handleBlur);
   }, []);
 
-  window.onbeforeunload = (e) => {
-    e.preventDefault();
-    e.returnValue = ""; // Show default browser confirmation
-  };
-
+  // Prevent reload
   useEffect(() => {
-    const disableShortcuts = (e: KeyboardEvent) => {
+    window.onbeforeunload = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+  }, []);
+
+  // Disable certain keys
+  useEffect(() => {
+    const handleKeyboard = (e: KeyboardEvent) => {
       if (
-        (e.ctrlKey &&
-          ["u", "s", "c", "v", "r"].includes(e.key.toLowerCase())) ||
+        (e.ctrlKey && ["u", "s", "c", "v", "r"].includes(e.key.toLowerCase())) ||
         e.key === "F12" ||
-        e.key === "esc"
+        e.key === "Escape"
       ) {
         e.preventDefault();
       }
     };
-
-    // const disableRightClick = (e: MouseEvent) => e.preventDefault();
-
-    document.addEventListener("keydown", disableShortcuts);
-    //  document.addEventListener("contextmenu", disableRightClick);
-
-    return () => {
-      document.removeEventListener("keydown", disableShortcuts);
-      //  document.removeEventListener("contextmenu", disableRightClick);
-    };
+    document.addEventListener("keydown", handleKeyboard);
+    return () => document.removeEventListener("keydown", handleKeyboard);
   }, []);
 
-  const handleAnswer = (index: number) => {
-    if (!questions) return;
-    const correct = questions[currentIndex].answer === index;
-    if (correct) setScore((s) => s + 1);
+  // Handle answer click
+  const handleAnswer = (optionIndex: number) => {
+    if (selected[currentIndex] !== undefined) return;
 
-    setSelected([...selected, index]);
+    const isCorrect = questions[currentIndex].ans === optionIndex;
+    if (isCorrect) setScore((prev) => prev + 1);
+
+    setSelected((prev) => {
+      const updated = [...prev];
+      updated[currentIndex] = optionIndex;
+      return updated;
+    });
 
     setTimeout(() => {
       if (currentIndex + 1 < questions.length) {
-        setCurrentIndex((prev) => prev + 1);
+        setCurrentIndex(currentIndex + 1);
       } else {
         setFinished(true);
       }
     }, 600);
   };
 
+  // Handle result page navigation
   const handleResult = () => {
     router.push(`/room/${roomId}/${owner}`);
   };
 
-  const progress = questions
-    ? ((currentIndex + Number(finished)) / questions.length) * 100
-    : 0;
-
   return (
-    <div className="min-h-screen w-full bg-white flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-2xl p-6 rounded-2xl border shadow-lg space-y-6">
-        <div className="h-3 w-full bg-gray-200 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-blue-600 transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-
-        {!questions ? (
-          <div className="text-center text-gray-500">
-            Waiting for admin to start...
-          </div>
-        ) : finished ? (
-          <div className="text-center space-y-4">
-            <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto" />
-            <h1 className="text-2xl font-bold">Quiz Finished</h1>
-            <p className="text-gray-700">
-              Your score: {score} / {questions.length}
-            </p>
-            <button
-              onClick={() => handleResult()}
-              className="mt-6 w-full bg-black text-white py-2 rounded-lg hover:bg-gray-800 transition-all"
-            >
-              Go to Room
-            </button>
-          </div>
-        ) : (
-          <div>
-            <h2 className="text-lg text-gray-600 mb-2">
-              Question {currentIndex + 1} of {questions.length}
-            </h2>
-            <h1 className="text-xl md:text-2xl font-semibold mb-6">
-              {questions[currentIndex].question}
-            </h1>
-            <div className="space-y-3">
-              {questions[currentIndex].options.map((opt, i) => (
-                <div
-                  key={i}
-                  onClick={() => handleAnswer(i)}
-                  className={cn(
-                    "cursor-pointer border rounded-lg px-4 py-3 transition-all",
-                    selected.length > currentIndex
-                      ? i === questions[currentIndex].answer
-                        ? "bg-green-100 border-green-500"
-                        : i === selected[currentIndex]
-                        ? "bg-red-100 border-red-500"
-                        : "bg-white"
-                      : "hover:bg-gray-100"
-                  )}
-                >
-                  {opt}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {user?.id === owner && !questions && (
+    <div className="min-h-screen bg-white text-black px-4 py-6 flex items-center justify-center">
+      <div className="w-full max-w-2xl">
+        {/* Owner clicks to load the quiz */}
+        {user?.id === owner && questions.length === 0 && (
           <button
-            onClick={() => enterFullscreen()}
-            className="mt-6 w-full bg-black text-white py-2 rounded-lg hover:bg-gray-800 transition-all"
+            onClick={enterFullscreen}
+            className="w-full py-3 bg-black text-white font-semibold rounded-lg hover:bg-gray-800 transition-all"
           >
             Load Quiz
           </button>
+        )}
+
+        {/* Quiz section */}
+        {!finished && questions.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">
+              {`Question ${currentIndex + 1} of ${questions.length}`}
+            </h2>
+            <p className="text-xl mb-4">{questions[currentIndex].q}</p>
+            <ul className="space-y-2">
+              {questions[currentIndex].opts.map((opt, idx) => {
+                const isSelected = selected[currentIndex] === idx;
+                const isCorrect = questions[currentIndex].ans === idx;
+                const isAnswered = selected[currentIndex] !== undefined;
+
+                return (
+                  <li
+                    key={idx}
+                    onClick={() => handleAnswer(idx)}
+                    className={cn(
+                      "p-3 rounded-lg border transition-all cursor-pointer select-none",
+                      isAnswered
+                        ? isCorrect
+                          ? "bg-green-200 border-green-500"
+                          : isSelected
+                            ? "bg-red-200 border-red-500"
+                            : "bg-gray-100 border-gray-300"
+                        : "hover:bg-yellow-100 border-gray-200"
+                    )}
+                  >
+                    {opt}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
+        {/* Finish page */}
+        {finished && (
+          <div className="text-center space-y-4">
+            <CheckCircle2 className="mx-auto h-12 w-12 text-green-500" />
+            <h2 className="text-2xl font-bold">Quiz Completed</h2>
+            <p className="text-lg font-semibold">
+              Your score: {score} / {questions.length}
+            </p>
+            <button
+              onClick={handleResult}
+              className="mt-4 px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-all"
+            >
+              See Results
+            </button>
+          </div>
         )}
       </div>
     </div>

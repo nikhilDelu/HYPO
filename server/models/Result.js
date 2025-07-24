@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema({
     required: true,
   },
   score: {
-    type: [Number],
+    type: Number,
     required: true, 
   },
   
@@ -28,8 +28,12 @@ const resultSchema = new mongoose.Schema(
       type: [userSchema],
       required: true,
     },
-    totalScore: {
+    maxScore: {
       type: Number,
+      required: true,
+    },
+    winner:{
+      type: String, // Clerk userId of the winner
       required: true,
     },
     createdBy: {

@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 
 const questionSchema = new mongoose.Schema({
-  question: {
+  q: {
     type: String,
     required: true,
   },
-  options: {
+  opts: {
     type: [String],
     required: true,
     validate: {
@@ -13,7 +13,7 @@ const questionSchema = new mongoose.Schema({
       message: "Exactly 4 options are required.",
     },
   },
-  answer: {
+  ans: {
     type: Number,
     required: true,
     min: 0,
@@ -35,9 +35,13 @@ const quizSchema = new mongoose.Schema(
       type: [questionSchema],
       required: true,
     },
-    entryfee:{
-      type:Number,
+    entryfee: {
+      type: Number,
       required: true,
+    },
+    totalScore: {
+      type: Number,
+      default: 0,
     },
     createdBy: {
       type: String, // Clerk userId
