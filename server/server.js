@@ -184,7 +184,7 @@ app.get("/api/messages/:roomId", requireAuth(), async (req, res) => {
 
 app.post("/api/quiz", async (req, res) => {
   const { sub, createdBy, roomId, entryfee } = req.body;
-  const prompt = `System: JSON only.  
+  const prompt = `System:Strict JSON only.  
 10 factual MCQs on ${sub}. Each {"q","opts","ans"}; 4 opts; 0-3 ans.  
 Add "desc": 2-line neutral puzzle on ${sub}, no hints.  
 Return exactly: {"ques":[{"q":"","opts":["","","",""],"ans":0},{"q":"","opts":["","","",""],"ans":2}, ...],"desc":""}  
@@ -270,9 +270,19 @@ io.on("connection", (socket) => {
 
     await redis.set(`${userId}`, socket.id);
     socket.join(roomId);
-    console.log(roomId, "  ", userId)
-    await redis.sAdd(`room:${roomId}:users`, userId);
-    console.log(`User ${socket.id} joined room ${roomId}`);
+    const exists = await redis.sIsMember(`room:${roomId}:users`, userId)
+    if (exists) {
+      const next = parseInt(await redis.hGet(`progress:${roomId}:${userId}`, "currentQuestion")) || 0;
+      if(next >=10){
+        await redis.hSet(`progress:${roomId}:${userId}`,{currentQuestion:0});
+      }
+      console.log("In join-room next value: ", next);
+      socket.emit("continue-quiz", next);
+    }
+    else {
+
+      console.log(`User ${socket.id} joined room ${roomId}`);
+    }
   });
 
   // Chatting
@@ -302,8 +312,9 @@ io.on("connection", (socket) => {
   });
 
   //Start the Quiz
-  socket.on("get-quiz", async ({ roomId, _id }) => {
+  socket.on("get-quiz", async ({ roomId, userId }) => {
     //const quizdb = await Quiz.findOne({ roomId });
+    await redis.sAdd(`room:${roomId}:users`, userId);
     const quiz = await redis.json.get(`quiz:${roomId}`, "$");
     console.log("In get quiz: ", quiz.questions[0]);
     if (!quiz) {
@@ -312,7 +323,6 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("questions", {
       question: quiz.questions[0],
       noquest: quiz.questions.length,
-      createdBy: quiz.createdBy,
     });
     // const timer = setTimeout(() => {
     //   console.log("Quiz ended for room:", roomId);
@@ -324,19 +334,37 @@ io.on("connection", (socket) => {
 
   // Handle next question
   // queIndex is the index of next question ; cscore is the score of last question
-  socket.on("next-question", async ({ roomId, queindex, userId, cscore }) => {
-    const next = await redis.json.get(`quiz:${roomId}`, "$.ques[" + queindex + "]");
+  socket.on("next-question", async ({ roomId, queindex, userId, isCorrect }) => {
+    const path = "$.questions"
+    console.log("queindex in next-question: ", queindex);
+    const quiz = await redis.json.get(`quiz:${roomId}`, path);
+    //console.log(next);
     let score = parseInt(await redis.hGet(`progress:${roomId}:${userId}`, "score")) || 0;
-    if (cscore) {
-      score += cscore;
+    if (isCorrect) {
+      score += 1;
     }
 
     await redis.hSet(`progress:${roomId}:${userId}`, { currentQuestion: queindex + 1, score });
+
+    console.log("Quiz in next-question: ", quiz)
+    const next = quiz.questions[queindex];
+    console.log(next)
     socket.emit("next-question", next);
   });
 
+  //End of quiz by creator
+  socket.on("finish-quiz", async ({ roomId, userId }) => {
+    const createdBy = await redis.json.get(`quiz:${roomId}`, "$.createdBy");
+    if (!roomId || !userId) {
+      socket.emit("error")
+    }
+    if (userId === createdBy) {
+      io.to(roomId).emit("quiz-ended");
+    }
+  });
+
   //Handle end of quiz
-  socket.on("end-quiz", async ({ roomId, score, user }) => {
+  socket.on("quiz-ended", async ({ roomId, score, user }) => {
     console.log("Quiz ended for room:", roomId);
     res = await redis.hGet(`progress:${roomId}:${user.id}`, "score");
     members = await redis.sMembers(`room:${roomId}:users`);
