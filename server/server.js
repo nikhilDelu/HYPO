@@ -13,8 +13,6 @@ import { createClient } from "redis";
 import { createPerplexity } from "@ai-sdk/perplexity";
 import { generateText } from "ai";
 
-
-
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -28,7 +26,7 @@ mongoose.connect(
 );
 
 const redis = createClient({
-  url: "redis://172.24.138.232:6379",
+  url: "redis://172.25.103.107:6379",
 });
 
 redis.on("error", (err) => console.error("Redis Client Error", err));
@@ -45,8 +43,8 @@ app.use((req, res, next) => {
 
 //PERPLEXITY_API_KEY=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
 const perplexity = createPerplexity({
-  apiKey: process.env.PERPLEXITY_API_KEY,
-})
+  apiKey: "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",
+});
 
 app.post("/api/rooms", requireAuth(), async (req, res) => {
   const { name } = req.body;
@@ -57,28 +55,21 @@ app.post("/api/rooms", requireAuth(), async (req, res) => {
     rname: name,
     createdBy: createdBy,
   };
-  const saved = await redis.json.set(
-    `room:${roomId}`,
-    "$",
-    robj)
-    ;
-
+  const saved = await redis.json.set(`room:${roomId}`, "$", robj);
   const room = await Room.create({ roomId, name, createdBy });
   res.json({ roomId: room.roomId, createdBy: room.createdBy, name: room.name });
 });
 app.get("/api/messages/:roomId", requireAuth(), async (req, res) => {
   const { roomId } = req.params;
-  const exists = await redis.exists(`room:${roomId}:messages`)
+  const exists = await redis.exists(`room:${roomId}:messages`);
   if (exists) {
     const messages = await redis.lRange(`room:${roomId}:messages`, 0, -1);
     const rmsgs = messages.map((msg) => JSON.parse(msg));
     console.log("Messages from Redis:", rmsgs);
     return res.json(rmsgs);
-  }
-  else {
+  } else {
     res.status(201).json([]);
   }
-
 });
 
 // Quiz Generation
@@ -94,7 +85,7 @@ app.get("/api/messages/:roomId", requireAuth(), async (req, res) => {
 
 // JSON FORMAT:
 // {
-//   "ques": 
+//   "ques":
 //   [
 //     {
 //       "question": "Your first question here?",
@@ -188,14 +179,14 @@ app.post("/api/quiz", async (req, res) => {
 10 factual MCQs on ${sub}. Each {"q","opts","ans"}; 4 opts; 0-3 ans.  
 Add "desc": 2-line neutral puzzle on ${sub}, no hints.  
 Return exactly: {"ques":[{"q":"","opts":["","","",""],"ans":0},{"q":"","opts":["","","",""],"ans":2}, ...],"desc":""}  
-No markdown or extra text.`
+No markdown or extra text.`;
   const response = await generateText({
-    model: perplexity('sonar'),
+    model: perplexity("sonar"),
     prompt: prompt,
-    response_format: { type: 'json_object' },
+    response_format: { type: "json_object" },
     max_tokens: 1000,
-    temperature: 0.4
-  })
+    temperature: 0.4,
+  });
   const resp = JSON.parse(response.text);
   console.log(resp);
 
@@ -212,13 +203,12 @@ No markdown or extra text.`
     entryfee: entryfee,
     createdBy,
   });
-  console.log("quiz created:", quiz)
+  console.log("quiz created:", quiz);
   if (quiz) {
     await redis.json.set(`quiz:${roomId}`, "$", quiz);
   }
   const desc = resp.desc;
   res.json({ _id: quiz._id, desc });
-
 });
 
 app.post("/api/quiz/start", async (req, res) => {
@@ -261,7 +251,6 @@ const activePolls = {};
 io.on("connection", (socket) => {
   console.log("🟢 New user connected:", socket.id);
 
-
   // Join room : Update the Frontend to emit the userId
   socket.on("join-room", async (roomId, userId) => {
     if (!roomId || !userId) {
@@ -270,7 +259,7 @@ io.on("connection", (socket) => {
 
     await redis.set(`${userId}`, socket.id);
     socket.join(roomId);
-    console.log(roomId, "  ", userId)
+    console.log(roomId, "  ", userId);
     await redis.sAdd(`room:${roomId}:users`, userId);
     console.log(`User ${socket.id} joined room ${roomId}`);
   });
@@ -319,19 +308,25 @@ io.on("connection", (socket) => {
     //   endQuiz(roomId);
     //   io.to(roomId).emit("quiz-ended", { roomId, quizId: _id });
     // })
-
   });
 
   // Handle next question
   // queIndex is the index of next question ; cscore is the score of last question
   socket.on("next-question", async ({ roomId, queindex, userId, cscore }) => {
-    const next = await redis.json.get(`quiz:${roomId}`, "$.ques[" + queindex + "]");
-    let score = parseInt(await redis.hGet(`progress:${roomId}:${userId}`, "score")) || 0;
+    const next = await redis.json.get(
+      `quiz:${roomId}`,
+      "$.ques[" + queindex + "]"
+    );
+    let score =
+      parseInt(await redis.hGet(`progress:${roomId}:${userId}`, "score")) || 0;
     if (cscore) {
       score += cscore;
     }
 
-    await redis.hSet(`progress:${roomId}:${userId}`, { currentQuestion: queindex + 1, score });
+    await redis.hSet(`progress:${roomId}:${userId}`, {
+      currentQuestion: queindex + 1,
+      score,
+    });
     socket.emit("next-question", next);
   });
 
@@ -355,7 +350,6 @@ io.on("connection", (socket) => {
     console.log("🔴 User disconnected:", socket.id);
     //await redis.sRem(`room:${}:users`, socket.data.userId);
   });
-
 });
 
 server.listen(5000, () =>
